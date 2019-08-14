@@ -9,6 +9,7 @@ use syntax::tokenstream;
 use smallvec::SmallVec;
 use syntax_pos::{self, Pos, Span};
 
+use std::io::ErrorKind;
 use rustc_data_structures::sync::Lrc;
 
 // These macros all relate to the file system; they either return
@@ -112,17 +113,17 @@ pub fn expand_include_str(cx: &mut ExtCtxt<'_>, sp: Span, tts: &[tokenstream::To
         None => return DummyResult::expr(sp)
     };
     let file = cx.resolve_path(file, sp);
-    match cx.source_map().load_binary_file(&file) {
-        Ok(bytes) => match std::str::from_utf8(&bytes) {
-            Ok(src) => {
-                let interned_src = Symbol::intern(&src);
-                base::MacEager::expr(cx.expr_str(sp, interned_src))
-            }
-            Err(_) => {
-                cx.span_err(sp, &format!("{} wasn't a utf-8 file", file.display()));
-                DummyResult::expr(sp)
-            }
-        },
+    match cx.source_map().load_file(&file) {
+        Ok(source_file) => {
+            let src = source_file.src.as_ref()
+                .expect("freshly loaded file should have a source");
+            let interned_src = Symbol::intern(src.as_str());
+            base::MacEager::expr(cx.expr_str(sp, interned_src))
+        }
+        Err(ref e) if e.kind() == ErrorKind::InvalidData => {
+            cx.span_err(sp, &format!("{} wasn't a utf-8 file", file.display()));
+            DummyResult::expr(sp)
+        }
         Err(e) => {
             cx.span_err(sp, &format!("couldn't read {}: {}", file.display(), e));
             DummyResult::expr(sp)

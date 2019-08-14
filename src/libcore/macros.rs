@@ -1020,7 +1020,8 @@ pub(crate) mod builtin {
     /// modules are found)
     ///
     /// This macro will yield an expression of type `&'static str` which is the
-    /// contents of the file.
+    /// contents of the file. Byte order mark is stripped from the start of the
+    /// file.
     ///
     /// # Examples
     ///
