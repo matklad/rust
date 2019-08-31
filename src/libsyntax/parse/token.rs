@@ -608,6 +608,66 @@ impl Token {
         Some(Token::new(kind, self.span.to(joint.span)))
     }
 
+    crate fn glue_for_parser(&self, joint: &Token) -> Option<Token> {
+        let kind = match self.kind {
+            Eq => match joint.kind {
+                Eq => EqEq,
+                Gt => FatArrow,
+                _ => return None,
+            },
+            Lt => match joint.kind {
+                Eq => Le,
+                Lt => BinOp(Shl),
+                Le => BinOpEq(Shl),
+                BinOp(Minus) => LArrow,
+                _ => return None,
+            },
+            Gt => match joint.kind {
+                Eq => Ge,
+                Gt => BinOp(Shr),
+                Ge => BinOpEq(Shr),
+                _ => return None,
+            },
+            Not => match joint.kind {
+                Eq => Ne,
+                _ => return None,
+            },
+            BinOp(op) => match joint.kind {
+                Eq => BinOpEq(op),
+                BinOp(And) if op == And => AndAnd,
+                BinOp(Or) if op == Or => OrOr,
+                Gt if op == Minus => RArrow,
+                _ => return None,
+            },
+            Dot => match joint.kind {
+                Dot => DotDot,
+                DotDot => DotDotDot,
+                _ => return None,
+            },
+            DotDot => match joint.kind {
+                Dot => DotDotDot,
+                Eq => DotDotEq,
+                _ => return None,
+            },
+            Colon => match joint.kind {
+                Colon => ModSep,
+                _ => return None,
+            },
+            SingleQuote => match joint.kind {
+                Ident(name, false) => Lifetime(Symbol::intern(&format!("'{}", name))),
+                _ => return None,
+            },
+
+            Le | EqEq | Ne | Ge | AndAnd | OrOr | Tilde | BinOpEq(..) | At | DotDotDot |
+            DotDotEq | Comma | Semi | ModSep | RArrow | LArrow | FatArrow | Pound | Dollar |
+            Question | OpenDelim(..) | CloseDelim(..) |
+            Literal(..) | Ident(..) | Lifetime(..) | Interpolated(..) | DocComment(..) |
+            Whitespace | Comment | Shebang(..) | Unknown(..) | Eof => return None,
+        };
+
+        Some(Token::new(kind, self.span.to(joint.span)))
+    }
+
     // See comments in `Nonterminal::to_tokenstream` for why we care about
     // *probably* equal here rather than actual equality
     crate fn probably_equal_for_proc_macro(&self, other: &Token) -> bool {
