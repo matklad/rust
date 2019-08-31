@@ -61,6 +61,7 @@ fn parse_assert<'a>(
     sp: Span,
     tts: &[TokenTree]
 ) -> Result<Assert, DiagnosticBuilder<'a>> {
+    log::debug!("parse_assert({:?})", tts);
     let mut parser = cx.new_parser_from_tts(tts);
 
     if parser.token == token::Eof {

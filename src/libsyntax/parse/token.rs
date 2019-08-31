@@ -316,6 +316,13 @@ impl Token {
         }
     }
 
+    crate fn is_open_delim(&self) -> bool {
+        match self.kind {
+            OpenDelim(..) => true,
+            _ => false,
+        }
+    }
+
     crate fn is_like_plus(&self) -> bool {
         match self.kind {
             BinOp(Plus) | BinOpEq(Plus) => true,
@@ -548,7 +555,8 @@ impl Token {
         }
     }
 
-    crate fn glue(&self, joint: &Token) -> Option<Token> {
+    #[allow(unused)]
+    crate fn glue_for_tt_matcher(&self, joint: &Token) -> Option<Token> {
         let kind = match self.kind {
             Eq => match joint.kind {
                 Eq => EqEq,
@@ -608,7 +616,7 @@ impl Token {
         Some(Token::new(kind, self.span.to(joint.span)))
     }
 
-    crate fn glue_for_parser(&self, joint: &Token) -> Option<Token> {
+    crate fn glue(&self, joint: &Token) -> Option<Token> {
         let kind = match self.kind {
             Eq => match joint.kind {
                 Eq => EqEq,
@@ -628,10 +636,10 @@ impl Token {
                 Ge => BinOpEq(Shr),
                 _ => return None,
             },
-            Not => match joint.kind {
-                Eq => Ne,
-                _ => return None,
-            },
+            // Not => match joint.kind {
+            //     Eq => Ne,
+            //     _ => return None,
+            // },
             BinOp(op) => match joint.kind {
                 Eq => BinOpEq(op),
                 BinOp(And) if op == And => AndAnd,
@@ -663,6 +671,8 @@ impl Token {
             Question | OpenDelim(..) | CloseDelim(..) |
             Literal(..) | Ident(..) | Lifetime(..) | Interpolated(..) | DocComment(..) |
             Whitespace | Comment | Shebang(..) | Unknown(..) | Eof => return None,
+
+            Not => return None,
         };
 
         Some(Token::new(kind, self.span.to(joint.span)))

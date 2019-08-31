@@ -152,7 +152,7 @@ impl<'a> Parser<'a> {
         };
         let last_type_ascription_set = self.last_type_ascription.is_some();
 
-        match (self.expr_is_complete(&lhs), AssocOp::from_token(&self.token)) {
+        match (self.expr_is_complete(&lhs), self.assoc_op()) {
             (true, None) => {
                 self.last_type_ascription = None;
                 // Semi-statement forms are odd. See https://github.com/rust-lang/rust/issues/29071
@@ -197,7 +197,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.expected_tokens.push(TokenType::Operator);
-        while let Some(op) = AssocOp::from_token(&self.token) {
+        while let Some(op) = self.assoc_op() {
 
             // Adjust the span for interpolated LHS to point to the `$lhs` token and not to what
             // it refers to. Interpolated identifiers are unwrapped early and never show up here
@@ -229,7 +229,7 @@ impl<'a> Parser<'a> {
                 self.err_larrow_operator(self.token.span);
             }
 
-            self.bump();
+            self.bump_assoc_op(op);
             if op.is_comparison() {
                 self.check_no_chained_comparison(&lhs, &op);
             }
@@ -363,14 +363,14 @@ impl<'a> Parser<'a> {
         debug_assert!([token::DotDot, token::DotDotDot, token::DotDotEq].contains(&self.token.kind),
                       "parse_prefix_range_expr: token {:?} is not DotDot/DotDotEq",
                       self.token);
-        let tok = self.token.clone();
+        let assoc_op = self.assoc_op();
         let attrs = self.parse_or_use_outer_attributes(already_parsed_attrs)?;
         let lo = self.token.span;
         let mut hi = self.token.span;
         self.bump();
         let opt_end = if self.is_at_start_of_range_notation_rhs() {
             // RHS must be parsed with more associativity than the dots.
-            let next_prec = AssocOp::from_token(&tok).unwrap().precedence() + 1;
+            let next_prec = assoc_op.unwrap().precedence() + 1;
             Some(self.parse_assoc_expr_with(next_prec, LhsExpr::NotYetParsed)
                 .map(|x| {
                     hi = x.span;
@@ -379,7 +379,7 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        let limits = if tok == token::DotDot {
+        let limits = if assoc_op == Some(AssocOp::DotDot) {
             RangeLimits::HalfOpen
         } else {
             RangeLimits::Closed
@@ -1011,7 +1011,8 @@ impl<'a> Parser<'a> {
                     let path = self.parse_path(PathStyle::Expr)?;
 
                     // `!`, as an operator, is prefix, so we know this isn't that
-                    if self.eat(&token::Not) {
+                    if self.check(&token::Not) && self.look_ahead(1, |t| t.is_open_delim()) {
+                        self.bump();
                         // MACRO INVOCATION expression
                         let (delim, tts) = self.expect_delimited_token_tree()?;
                         hi = self.prev_span;

@@ -238,7 +238,7 @@ impl TokenStreamBuilder {
     fn push(&mut self, (tree, joint): TreeAndJoint) {
         if let Some((TokenTree::Token(prev_token), Joint)) = self.buf.last() {
             if let TokenTree::Token(token) = &tree {
-                if let Some(glued) = prev_token.glue_for_parser(token) {
+                if let Some(glued) = prev_token.glue(token) {
                     self.buf.pop();
                     self.buf.push((TokenTree::Token(glued), joint));
                     return;
