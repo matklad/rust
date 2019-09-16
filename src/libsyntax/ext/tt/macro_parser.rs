@@ -901,7 +901,7 @@ fn may_begin_with(token: &Token, name: Name) -> bool {
 /// The parsed non-terminal.
 fn parse_nt(p: &mut Parser<'_>, sp: Span, name: Symbol) -> Nonterminal {
     if name == sym::tt {
-        return token::NtTT(p.parse_token_tree().into());
+        return token::NtTT(p.parse_tt_matcher());
     }
     // check at the beginning and the parser checks after each bump
     p.process_potential_macro_variable();

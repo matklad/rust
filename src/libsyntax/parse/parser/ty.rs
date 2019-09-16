@@ -172,7 +172,8 @@ impl<'a> Parser<'a> {
         } else if self.token.is_path_start() {
             // Simple path
             let path = self.parse_path(PathStyle::Type)?;
-            if self.eat(&token::Not) {
+            if self.check(&token::Not) && self.look_ahead(1, |t| t.is_open_delim()) {
+                self.bump();
                 // Macro invocation in type position
                 let (delim, tts) = self.expect_delimited_token_tree()?;
                 let mac = Mac {

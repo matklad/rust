@@ -102,7 +102,7 @@ error[E0369]: binary operation `!=` cannot be applied to type `A`
   --> $DIR/issue-28837.rs:26:7
    |
 LL |     a != a;
-   |     - ^^ - A
+   |     - ^  - A
    |     |
    |     A
    |

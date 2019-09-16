@@ -31,7 +31,7 @@ impl<'a> Parser<'a> {
         let mut attrs: Vec<ast::Attribute> = Vec::new();
         let mut just_parsed_doc_comment = false;
         loop {
-            debug!("parse_outer_attributes: self.token={:?}", self.token);
+            debug!("parse_outer_attributes: self.token={:?}", (&self.token, self.is_joint));
             match self.token.kind {
                 token::Pound => {
                     let inner_error_reason = if just_parsed_doc_comment {

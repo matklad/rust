@@ -617,16 +617,14 @@ impl Token {
         Some(Token::new(kind, self.span.to(joint.span)))
     }
 
-    crate fn glue_for_tt_matcher(&self, joint: &Token) -> Option<Token> {
-        let kind = match self.kind {
+    crate fn glue_for_tt_matcher(&self, joint: &Token) -> bool {
+        match self.kind {
             Not => match joint.kind {
-                Eq => Ne,
-                _ => return None,
+                Eq => true,
+                _ => false,
             },
-            _ => return None,
-        };
-
-        Some(Token::new(kind, self.span.to(joint.span)))
+            _ => false,
+        }
     }
 
     // See comments in `Nonterminal::to_tokenstream` for why we care about

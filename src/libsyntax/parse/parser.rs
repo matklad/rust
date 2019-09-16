@@ -25,7 +25,7 @@ use crate::ptr::P;
 use crate::source_map::{self, respan};
 use crate::symbol::{kw, sym, Symbol};
 use crate::tokenstream::{self, DelimSpan, TokenTree, TokenStream, TreeAndJoint};
-use crate::tokenstream::IsJoint::{self, NonJoint};
+use crate::tokenstream::IsJoint::{self, Joint, NonJoint};
 use crate::ThinVec;
 use crate::util::parser::AssocOp;
 
@@ -119,7 +119,7 @@ pub struct Parser<'a> {
     /// Perhaps the normalized / non-normalized setup can be simplified somehow.
     pub token: Token,
     /// Is `token` joined to the next one?
-    is_joint: IsJoint,
+    crate is_joint: IsJoint,
     /// The span of the current non-normalized token.
     meta_var_span: Option<Span>,
     /// The span of the previous non-normalized token.
@@ -1207,30 +1207,43 @@ impl<'a> Parser<'a> {
 
     /// Parses a single token tree from the input.
     crate fn parse_token_tree(&mut self) -> TokenTree {
+        let (tree, _jointness) = self.parse_token_tree_and_joint();
+        tree
+    }
+
+    crate fn parse_tt_matcher(&mut self) -> TokenStream {
+        let mut buf = Vec::new();
+        buf.push(self.parse_token_tree_and_joint());
+        match buf.last() {
+            Some((TokenTree::Token(token), Joint)) if token.glue_for_tt_matcher(&self.token) => {
+                buf.push(self.parse_token_tree_and_joint());
+            }
+            _ => (),
+        }
+        TokenStream::new(buf)
+    }
+
+    /// Parses a single token tree from the input.
+    fn parse_token_tree_and_joint(&mut self) -> TreeAndJoint {
         match self.token.kind {
             token::OpenDelim(..) => {
                 let frame = mem::replace(&mut self.token_cursor.frame,
                                          self.token_cursor.stack.pop().unwrap());
                 self.token.span = frame.span.entire();
                 self.bump();
-                TokenTree::Delimited(
+                let tree = TokenTree::Delimited(
                     frame.span,
                     frame.delim,
                     frame.tree_cursor.stream.into(),
-                )
+                );
+                (tree, NonJoint)
             },
             token::CloseDelim(_) | token::Eof => unreachable!(),
             _ => {
-                let mut token = self.token.take();
-                let is_joint = self.is_joint == IsJoint::Joint;
+                let token = self.token.take();
+                let is_joint = self.is_joint;
                 self.bump();
-                if is_joint {
-                    if let Some(t) = token.glue_for_tt_matcher(&self.token) {
-                        token = t;
-                        self.bump();
-                    }
-                }
-                TokenTree::Token(token)
+                (TokenTree::Token(token), is_joint)
             }
         }
     }

@@ -71,7 +71,7 @@ impl<'a> Parser<'a> {
                   !self.is_async_fn() {
             let path = self.parse_path(PathStyle::Expr)?;
 
-            if !self.eat(&token::Not) {
+            if !(self.check(&token::Not) && self.look_ahead(1, |t| t.is_open_delim())) {
                 let expr = if self.check(&token::OpenDelim(token::Brace)) {
                     self.parse_struct_expr(lo, path, ThinVec::new())?
                 } else {
@@ -90,6 +90,7 @@ impl<'a> Parser<'a> {
                     span: lo.to(self.prev_span),
                 }));
             }
+            self.bump();
 
             let (delim, tts) = self.expect_delimited_token_tree()?;
             let hi = self.prev_span;

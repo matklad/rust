@@ -288,7 +288,7 @@ impl<'a> Parser<'a> {
                     (None, self.parse_path(PathStyle::Expr)?)
                 };
                 match self.token.kind {
-                    token::Not if qself.is_none() => self.parse_pat_mac_invoc(lo, path)?,
+                    token::Not if self.look_ahead(1, |t| t.is_open_delim()) && qself.is_none() => self.parse_pat_mac_invoc(lo, path)?,
                     token::DotDotDot | token::DotDotEq | token::DotDot => {
                         self.parse_pat_range_starting_with_path(lo, qself, path)?
                     }
