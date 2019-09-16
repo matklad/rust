@@ -25,7 +25,9 @@ use crate::ptr::P;
 use crate::source_map::{self, respan};
 use crate::symbol::{kw, sym, Symbol};
 use crate::tokenstream::{self, DelimSpan, TokenTree, TokenStream, TreeAndJoint};
+use crate::tokenstream::IsJoint::{self, NonJoint};
 use crate::ThinVec;
+use crate::util::parser::AssocOp;
 
 use errors::{Applicability, DiagnosticId, FatalError};
 use rustc_target::spec::abi::{self, Abi};
@@ -116,6 +118,8 @@ pub struct Parser<'a> {
     /// with non-interpolated identifier and lifetime tokens they refer to.
     /// Perhaps the normalized / non-normalized setup can be simplified somehow.
     pub token: Token,
+    /// Is `token` joined to the next one?
+    is_joint: IsJoint,
     /// The span of the current non-normalized token.
     meta_var_span: Option<Span>,
     /// The span of the previous non-normalized token.
@@ -213,21 +217,21 @@ impl TokenCursorFrame {
 }
 
 impl TokenCursor {
-    fn next(&mut self) -> Token {
+    fn next(&mut self) -> (Token, IsJoint) {
         loop {
-            let tree = if !self.frame.open_delim {
+            let (tree, is_joint) = if !self.frame.open_delim {
                 self.frame.open_delim = true;
-                TokenTree::open_tt(self.frame.span.open, self.frame.delim)
-            } else if let Some(tree) = self.frame.tree_cursor.next() {
-                tree
+                (TokenTree::open_tt(self.frame.span.open, self.frame.delim), NonJoint)
+            } else if let Some((tree, is_joint)) = self.frame.tree_cursor.next_with_joint() {
+                (tree, is_joint)
             } else if !self.frame.close_delim {
                 self.frame.close_delim = true;
-                TokenTree::close_tt(self.frame.span.close, self.frame.delim)
+                (TokenTree::close_tt(self.frame.span.close, self.frame.delim), NonJoint)
             } else if let Some(frame) = self.stack.pop() {
                 self.frame = frame;
                 continue
             } else {
-                return Token::new(token::Eof, DUMMY_SP);
+                return (Token::new(token::Eof, DUMMY_SP), NonJoint  );
             };
 
             match self.frame.last_token {
@@ -236,7 +240,7 @@ impl TokenCursor {
             }
 
             match tree {
-                TokenTree::Token(token) => return token,
+                TokenTree::Token(token) => return (token, is_joint),
                 TokenTree::Delimited(sp, delim, tts) => {
                     let frame = TokenCursorFrame::new(sp, delim, &tts);
                     self.stack.push(mem::replace(&mut self.frame, frame));
@@ -245,10 +249,11 @@ impl TokenCursor {
         }
     }
 
-    fn next_desugared(&mut self) -> Token {
-        let (name, sp) = match self.next() {
+    fn next_desugared(&mut self) -> (Token, IsJoint) {
+        let (tok, is_joint) = self.next();
+        let (name, sp) = match tok {
             Token { kind: token::DocComment(name), span } => (name, span),
-            tok => return tok,
+            tok => return (tok, is_joint),
         };
 
         let stripped = strip_doc_comment_decoration(&name.as_str());
@@ -341,6 +346,7 @@ impl<'a> Parser<'a> {
         let mut parser = Parser {
             sess,
             token: Token::dummy(),
+            is_joint: NonJoint,
             prev_span: DUMMY_SP,
             meta_var_span: None,
             prev_token_kind: PrevTokenKind::Other,
@@ -370,7 +376,9 @@ impl<'a> Parser<'a> {
             subparser_name,
         };
 
-        parser.token = parser.next_tok();
+        let (token, is_joint) = parser.next_tok();
+        parser.token = token;
+        parser.is_joint = is_joint;
 
         if let Some(directory) = directory {
             parser.directory = directory;
@@ -387,8 +395,8 @@ impl<'a> Parser<'a> {
         parser
     }
 
-    fn next_tok(&mut self) -> Token {
-        let mut next = if self.desugar_doc_comments {
+    fn next_tok(&mut self) -> (Token, IsJoint) {
+        let (mut next, is_joint) = if self.desugar_doc_comments {
             self.token_cursor.next_desugared()
         } else {
             self.token_cursor.next()
@@ -397,7 +405,7 @@ impl<'a> Parser<'a> {
             // Tweak the location for better diagnostics, but keep syntactic context intact.
             next.span = self.prev_span.with_ctxt(next.span.ctxt());
         }
-        next
+        (next, is_joint)
     }
 
     /// Converts the current token to a string using `self`'s reader.
@@ -601,6 +609,54 @@ impl<'a> Parser<'a> {
                 true
             }
             _ => false,
+        }
+    }
+
+    fn assoc_op(&self) -> Option<AssocOp> {
+        use AssocOp::*;
+        let op = match self.token.kind {
+            token::BinOpEq(k) => AssignOp(k),
+            token::Eq => Assign,
+            token::BinOp(token::BinOpToken::Star) => Multiply,
+            token::BinOp(token::BinOpToken::Slash) => Divide,
+            token::BinOp(token::BinOpToken::Percent) => Modulus,
+            token::BinOp(token::BinOpToken::Plus) => Add,
+            token::BinOp(token::BinOpToken::Minus) => Subtract,
+            token::BinOp(token::BinOpToken::Shl) => ShiftLeft,
+            token::BinOp(token::BinOpToken::Shr) => ShiftRight,
+            token::BinOp(token::BinOpToken::And) => BitAnd,
+            token::BinOp(token::BinOpToken::Caret) => BitXor,
+            token::BinOp(token::BinOpToken::Or) => BitOr,
+            token::Lt => Less,
+            token::Le => LessEqual,
+            token::Ge => GreaterEqual,
+            token::Gt => Greater,
+            token::EqEq => Equal,
+            token::Not if self.look_ahead_joint(token::Eq) => NotEqual,
+            token::Ne => NotEqual,
+            token::AndAnd => LAnd,
+            token::OrOr => LOr,
+            token::DotDot => DotDot,
+            token::DotDotEq => DotDotEq,
+            // DotDotDot is no longer supported, but we need some way to display the error
+            token::DotDotDot => DotDotEq,
+            token::Colon => Colon,
+            // `<-` should probably be `< -`
+            token::LArrow => Less,
+            _ if self.token.is_keyword(kw::As) => As,
+            _ => return None
+        };
+        log::debug!("assoc_op() = {:?}", op);
+        Some(op)
+    }
+
+    fn bump_assoc_op(&mut self, op: AssocOp) {
+        match op {
+            AssocOp::NotEqual => {
+                self.bump();
+                self.bump();
+            }
+            _ => self.bump(),
         }
     }
 
@@ -892,7 +948,10 @@ impl<'a> Parser<'a> {
             _ => PrevTokenKind::Other,
         };
 
-        self.token = self.next_tok();
+        let (token, is_joint) = self.next_tok();
+        self.token = token;
+        self.is_joint = is_joint;
+
         self.expected_tokens.clear();
         // Check after each token.
         self.process_potential_macro_variable();
@@ -926,6 +985,16 @@ impl<'a> Parser<'a> {
             }
             None => Token::new(token::CloseDelim(frame.delim), frame.span.close)
         })
+    }
+
+    fn look_ahead_joint(&self, kind: TokenKind) -> bool {
+        if self.is_joint == NonJoint {
+            return false;
+        }
+        match self.token_cursor.frame.tree_cursor.look_ahead(0) {
+            Some(TokenTree::Token(token)) => token.kind == kind,
+            _ => false,
+        }
     }
 
     /// Returns whether any of the given keywords are `dist` tokens ahead of the current one.
@@ -1152,8 +1221,15 @@ impl<'a> Parser<'a> {
             },
             token::CloseDelim(_) | token::Eof => unreachable!(),
             _ => {
-                let token = self.token.take();
+                let mut token = self.token.take();
+                let is_joint = self.is_joint == IsJoint::Joint;
                 self.bump();
+                if is_joint {
+                    if let Some(t) = token.glue_for_tt_matcher(&self.token) {
+                        token = t;
+                        self.bump();
+                    }
+                }
                 TokenTree::Token(token)
             }
         }
