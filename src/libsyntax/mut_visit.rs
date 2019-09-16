@@ -683,7 +683,7 @@ pub fn noop_visit_interpolated<T: MutVisitor>(nt: &mut token::Nonterminal, vis: 
         token::NtLiteral(expr) => vis.visit_expr(expr),
         token::NtMeta(meta) => vis.visit_meta_item(meta),
         token::NtPath(path) => vis.visit_path(path),
-        token::NtTT(tt) => vis.visit_tt(tt),
+        token::NtTT(tts) => vis.visit_tts(tts),
         token::NtImplItem(item) =>
             visit_clobber(item, |item| {
                 // See reasoning above.

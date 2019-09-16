@@ -690,7 +690,7 @@ pub enum Nonterminal {
     NtMeta(ast::MetaItem),
     NtPath(ast::Path),
     NtVis(ast::Visibility),
-    NtTT(TokenTree),
+    NtTT(TokenStream),
     // Used only for passing items to proc macro attributes (they are not
     // strictly necessary for that, `Annotatable` can be converted into
     // tokens directly, but doing that naively regresses pretty-printing).

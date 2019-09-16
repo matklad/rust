@@ -332,7 +332,7 @@ crate fn nonterminal_to_string(nt: &Nonterminal) -> String {
         token::NtIdent(e, is_raw)   => ast_ident_to_string(e, is_raw),
         token::NtLifetime(e)        => e.to_string(),
         token::NtLiteral(ref e)     => expr_to_string(e),
-        token::NtTT(ref tree)       => tt_to_string(tree.clone()),
+        token::NtTT(ref tree)       => tts_to_string(tree.clone()),
         token::NtImplItem(ref e)    => impl_item_to_string(e),
         token::NtTraitItem(ref e)   => trait_item_to_string(e),
         token::NtVis(ref e)         => vis_to_string(e),

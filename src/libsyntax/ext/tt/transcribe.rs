@@ -240,7 +240,9 @@ pub(super) fn transcribe(
                         // (e.g. `$x:tt`), but not when we are matching any other type of token
                         // tree?
                         if let NtTT(ref tt) = **nt {
-                            result.push(tt.clone().into());
+                            if let Some(tts) = &tt.0 {
+                                result.extend(tts.iter().cloned());
+                            }
                         } else {
                             marker.visit_span(&mut sp);
                             let token = TokenTree::token(token::Interpolated(nt.clone()), sp);
