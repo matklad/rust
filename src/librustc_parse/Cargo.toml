@@ -20,4 +20,5 @@ rustc_errors = { path = "../librustc_errors" }
 rustc_session = { path = "../librustc_session" }
 rustc_span = { path = "../librustc_span" }
 rustc_ast = { path = "../librustc_ast" }
+rustc_parser = { path = "../librustc_parser" }
 unicode-normalization = "0.1.11"

@@ -3751,6 +3751,7 @@ dependencies = [
  "rustc_errors",
  "rustc_feature",
  "rustc_lexer",
+ "rustc_parser",
  "rustc_session",
  "rustc_span",
  "unicode-normalization",
@@ -3763,6 +3764,10 @@ dependencies = [
  "rustc_lexer",
  "rustc_span",
 ]
+
+[[package]]
+name = "rustc_parser"
+version = "0.0.0"
 
 [[package]]
 name = "rustc_passes"
