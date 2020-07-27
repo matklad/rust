@@ -812,6 +812,17 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_rename(&mut self) -> PResult<'a, Option<Ident>> {
+        rustc_parser::parse_rename(
+            &mut None.into_iter(),
+            &mut |event| {
+                match event {
+                    rustc_parser::Event::Start(_) => {}
+                    rustc_parser::Event::Advance(_) => {}
+                    rustc_parser::Event::Finish(_) => {}
+                    rustc_parser::Event::Error => {}
+                }
+            }
+        );
         if self.eat_keyword(kw::As) { self.parse_ident_or_underscore().map(Some) } else { Ok(None) }
     }
 
