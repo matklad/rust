@@ -254,8 +254,6 @@ pub enum TokenKind {
     // Junk. These carry no data because we don't really care about the data
     // they *would* carry, and don't really want to allocate a new ident for
     // them. Instead, users could extract that from the associated span.
-    /// Whitespace.
-    Whitespace,
     /// A comment.
     Comment,
     Shebang(Symbol),
@@ -331,7 +329,7 @@ impl Token {
 
     /// Some token that will be thrown away later.
     pub fn dummy() -> Self {
-        Token::new(TokenKind::Whitespace, DUMMY_SP)
+        Token::new(TokenKind::Eof, DUMMY_SP)
     }
 
     /// Recovers a `Token` from an `Ident`. This creates a raw identifier if necessary.
@@ -360,7 +358,7 @@ impl Token {
     pub fn is_op(&self) -> bool {
         match self.kind {
             OpenDelim(..) | CloseDelim(..) | Literal(..) | DocComment(..) | Ident(..)
-            | Lifetime(..) | Interpolated(..) | Whitespace | Comment | Shebang(..) | Eof => false,
+            | Lifetime(..) | Interpolated(..) | Comment | Shebang(..) | Eof => false,
             _ => true,
         }
     }
@@ -676,7 +674,7 @@ impl Token {
             Le | EqEq | Ne | Ge | AndAnd | OrOr | Tilde | BinOpEq(..) | At | DotDotDot
             | DotDotEq | Comma | Semi | ModSep | RArrow | LArrow | FatArrow | Pound | Dollar
             | Question | OpenDelim(..) | CloseDelim(..) | Literal(..) | Ident(..)
-            | Lifetime(..) | Interpolated(..) | DocComment(..) | Whitespace | Comment
+            | Lifetime(..) | Interpolated(..) | DocComment(..) | Comment
             | Shebang(..) | Unknown(..) | Eof => return None,
         };
 

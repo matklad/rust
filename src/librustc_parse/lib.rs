@@ -348,9 +348,6 @@ pub fn tokenstream_probably_equal_for_proc_macro(
                 | token::CloseDelim(DelimToken::NoDelim)
                 // The pretty printer collapses many semicolons into one.
                 | token::Semi
-                // The pretty printer collapses whitespace arbitrarily and can
-                // introduce whitespace from `NoDelim`.
-                | token::Whitespace
                 // The pretty printer can turn `$crate` into `::crate_name`
                 | token::ModSep = token.kind {
                 return false;
@@ -506,7 +503,6 @@ fn token_probably_equal_for_proc_macro(first: &Token, other: &Token) -> bool {
         | (&Pound, &Pound)
         | (&Dollar, &Dollar)
         | (&Question, &Question)
-        | (&Whitespace, &Whitespace)
         | (&Comment, &Comment)
         | (&Eof, &Eof) => true,
 

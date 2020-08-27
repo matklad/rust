@@ -48,7 +48,6 @@ impl<'a, 'tcx> SyntaxChecker<'a, 'tcx> {
             loop {
                 match lexer.next_token().kind {
                     token::Eof => break,
-                    token::Whitespace => (),
                     token::Unknown(..) => has_syntax_errors = true,
                     _ => only_whitespace = false,
                 }

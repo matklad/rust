@@ -96,11 +96,6 @@ impl<'a> StringReader<'a> {
         let start_src_index = self.src_index(self.pos);
         let text: &str = &self.src[start_src_index..self.end_src_index];
 
-        if text.is_empty() {
-            let span = self.mk_sp(self.pos, self.pos);
-            return Token::new(token::Eof, span);
-        }
-
         {
             let is_beginning_of_file = self.pos == self.start_pos;
             if is_beginning_of_file {
@@ -117,10 +112,21 @@ impl<'a> StringReader<'a> {
             }
         }
 
-        let token = rustc_lexer::first_token(text);
+        let mut token;
+        let mut start;
+        loop {
+            if text.is_empty() {
+                let span = self.mk_sp(self.pos, self.pos);
+                return Token::new(token::Eof, span);
+            }
+            token = rustc_lexer::first_token(text);
 
-        let start = self.pos;
-        self.pos = self.pos + BytePos::from_usize(token.len);
+            start = self.pos;
+            self.pos = self.pos + BytePos::from_usize(token.len);
+            if token.kind != rustc_lexer::TokenKind::Whitespace {
+                break;
+            }
+        }
 
         debug!("try_next_token: {:?}({:?})", token.kind, self.str_from(start));
 
@@ -168,6 +174,7 @@ impl<'a> StringReader<'a> {
     /// symbols and runs additional validation.
     fn cook_lexer_token(&self, token: rustc_lexer::TokenKind, start: BytePos) -> TokenKind {
         match token {
+            rustc_lexer::TokenKind::Whitespace => unreachable!(),
             rustc_lexer::TokenKind::LineComment { doc_style } => {
                 match doc_style {
                     Some(doc_style) => {
@@ -210,7 +217,6 @@ impl<'a> StringReader<'a> {
                     None => token::Comment,
                 }
             }
-            rustc_lexer::TokenKind::Whitespace => token::Whitespace,
             rustc_lexer::TokenKind::Ident | rustc_lexer::TokenKind::RawIdent => {
                 let is_raw_ident = token == rustc_lexer::TokenKind::RawIdent;
                 let mut ident_start = start;
