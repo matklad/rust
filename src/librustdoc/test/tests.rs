@@ -1,4 +1,5 @@
 use super::{make_test, TestOptions};
+use expect_test::expect_file;
 use rustc_span::edition::DEFAULT_EDITION;
 
 #[test]
@@ -276,4 +277,27 @@ test_wrapper! {
 
     let output = make_test(input, Some("my_crate"), false, &opts, DEFAULT_EDITION);
     assert_eq!(output, (expected, 1));
+}
+
+#[test]
+fn test_html_highlighting() {
+    let src = include_str!("fixtures/sample.rs");
+    let html = {
+        let mut out = String::new();
+        crate::html::highlight::write_code(&mut out, src);
+        format!("{}<pre><code>{}</code></pre>\n", STYLE, out)
+    };
+    expect_file!["src/librustdoc/test/fixtures/sample.html"].assert_eq(&html);
+
+    const STYLE: &str = r#"
+<style>
+.kw { color: #8959A8; }
+.kw-2, .prelude-ty { color: #4271AE; }
+.number, .string { color: #718C00; }
+.self, .bool-val, .prelude-val, .attribute, .attribute .ident { color: #C82829; }
+.macro, .macro-nonterminal { color: #3E999F; }
+.lifetime { color: #B76514; }
+.question-mark { color: #ff9011; }
+</style>
+"#;
 }

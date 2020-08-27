@@ -1,0 +1,9 @@
+#![crate_type = "lib"]
+
+#[cfg(target_os = "linux")]
+fn main() {
+    let foo = true && false || true;
+    let _: *const () = 0;
+    mac!(foo, &mut bar);
+    assert!(self.length < N && index <= self.length);
+}
