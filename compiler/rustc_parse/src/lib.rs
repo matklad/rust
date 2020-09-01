@@ -8,7 +8,7 @@
 
 use rustc_ast as ast;
 use rustc_ast::token::{self, DelimToken, Nonterminal, Token, TokenKind};
-use rustc_ast::tokenstream::{self, IsJoint, TokenStream, TokenTree};
+use rustc_ast::tokenstream::{self, TokenStream, TokenTree};
 use rustc_ast_pretty::pprust;
 use rustc_data_structures::sync::Lrc;
 use rustc_errors::{Diagnostic, FatalError, Level, PResult};
@@ -417,7 +417,7 @@ pub fn tokenstream_probably_equal_for_proc_macro(
     }
 
     let expand_nt = |tree: TokenTree| {
-        if let TokenTree::Token(Token { kind: TokenKind::Interpolated(nt), span }) = &tree {
+        if let TokenTree::Token(Token { kind: TokenKind::Interpolated(nt), span, .. }) = &tree {
             // When checking tokenstreams for 'probable equality', we are comparing
             // a captured (from parsing) `TokenStream` to a reparsed tokenstream.
             // The reparsed Tokenstream will never have `None`-delimited groups,
@@ -432,7 +432,7 @@ pub fn tokenstream_probably_equal_for_proc_macro(
             // issue #75734 tracks resolving this.
             nt_to_tokenstream(nt, sess, *span).into_trees()
         } else {
-            TokenStream::new(vec![(tree, IsJoint::NonJoint)]).into_trees()
+            TokenStream::new(vec![tree]).into_trees()
         }
     };
 

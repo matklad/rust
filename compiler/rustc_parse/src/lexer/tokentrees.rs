@@ -4,7 +4,7 @@ use rustc_ast::token::{self, DelimToken, Token};
 use rustc_ast::tokenstream::{
     DelimSpan,
     IsJoint::{self, *},
-    TokenStream, TokenTree, TreeAndJoint,
+    TokenStream, TokenTree,
 };
 use rustc_ast_pretty::pprust::token_to_string;
 use rustc_data_structures::fx::FxHashMap;
@@ -77,7 +77,7 @@ impl<'a> TokenTreesReader<'a> {
         }
     }
 
-    fn parse_token_tree(&mut self) -> PResult<'a, TreeAndJoint> {
+    fn parse_token_tree(&mut self) -> PResult<'a, TokenTree> {
         let sm = self.string_reader.sess.source_map();
 
         match self.token.kind {
@@ -261,12 +261,13 @@ impl<'a> TokenTreesReader<'a> {
                 Err(err)
             }
             _ => {
-                let tt = TokenTree::Token(self.token.take());
+                let mut token = self.token.take();
                 let mut is_joint = self.bump();
                 if !self.token.is_op() {
                     is_joint = NonJoint;
                 }
-                Ok((tt, is_joint))
+                token.is_joint = is_joint;
+                Ok(TokenTree::Token(token))
             }
         }
     }
@@ -280,21 +281,21 @@ impl<'a> TokenTreesReader<'a> {
 
 #[derive(Default)]
 struct TokenStreamBuilder {
-    buf: Vec<TreeAndJoint>,
+    buf: Vec<TokenTree>,
 }
 
 impl TokenStreamBuilder {
-    fn push(&mut self, (tree, joint): TreeAndJoint) {
-        if let Some((TokenTree::Token(prev_token), Joint)) = self.buf.last() {
+    fn push(&mut self, tree: TokenTree) {
+        if let Some(TokenTree::Token(prev_token)) = self.buf.last() {
             if let TokenTree::Token(token) = &tree {
                 if let Some(glued) = prev_token.glue(token) {
                     self.buf.pop();
-                    self.buf.push((TokenTree::Token(glued), joint));
+                    self.buf.push(TokenTree::Token(glued));
                     return;
                 }
             }
         }
-        self.buf.push((tree, joint))
+        self.buf.push(tree)
     }
 
     fn into_token_stream(self) -> TokenStream {
